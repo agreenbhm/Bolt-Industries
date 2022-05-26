@@ -34,7 +34,6 @@
 // | ||  \| \___ \ | | / _ \ | |   | |     / _ \ | |  | | | | |  \| |
 // | || |\  |___) || |/ ___ \| |___| |___ / ___ \| |  | | |_| | |\  |
 //|___|_| \_|____/ |_/_/   \_\_____|_____/_/   \_\_| |___\___/|_| \_|
-                                                                 
 
 //TO  INSTALL  THIS FIRMWARE
 //This firmware must be installed through the Arduino IDE.
@@ -52,14 +51,17 @@
 
 #include <Keyboard.h>
 #include <limits.h>
+#include "/Users/agreenbhm/Library/Arduino15/packages/rp2040/hardware/rp2040/2.0.2/pico-sdk/src/rp2_common/pico_bootrom/include/pico/bootrom.h"
+#include "/Users/agreenbhm/Library/Arduino15/packages/rp2040/hardware/rp2040/2.0.2/pico-sdk/src/rp2_common/hardware_watchdog/include/hardware/watchdog.h"
+
 
 // Uncomment this to switch the modifier keys used for macros and other OS dependent behavior
 // When MACOSX is defined we send Command-c to copy instead of Control-c, etc.
 // WIN32 works with Windows, Chrome, Android and Linux functions. 
 // This is not true for the Unicode helper function starting on line 277. To change the Unicode helper from Linux/Android/Chrome to Windows, go to line 277.
 
-//#define MACOSX
-#define WIN32
+#define MACOSX
+//#define WIN32
 
 // assign the collums to pins.
 #define Col_0 0
@@ -108,6 +110,7 @@ const int preDelay = 10;
 //The key needs to be pressed for at least this long to register. This could be set to zero but that might allow unintended keypresses
 const int minimumKeypressDelay = 5;
 
+
 // This is the mapping from row, column to key for rows 2 through 6. If you want to override a key, just enter the new key here.
 // If you want to write your own special handling, enter a 0x00 here to skip the key loop then write your special handling elsewhere.
 //                                     0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17
@@ -126,8 +129,8 @@ bool sKeyPressed[5][18];
 // If you want to write your own special handling, enter a 0x00 here to skip the key loop then write your special handling elsewhere.
 // If you want regular Function keys instead of shortcuts, you can comment out line 126 and un comment line 127.
 //                                   0     1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    16    17
-const char sKeysForRowsFn[18] = { 0xB1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-//const char sKeysForRowsFn[18] = { 0xB1, 0x00, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD,0x00, 0x00, 0x00, 0x00 };
+//const char sKeysForRowsFn[18] = { 0xB1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+const char sKeysForRowsFn[18] =   { 0xB1, 0x00, 0xC2, 0xC3, 0xC4, 0xC5, 0x00, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0x00, 0x00, 0x00 };
 
 // Here we track whether the function key was down or up on the last loop. We use this
 // to prevent key repeat of function keys
@@ -311,7 +314,13 @@ void pressKeyboardRespectCapLock( char key )
       keyboardRelease(KEY_LEFT_SHIFT);
       keyboardPress( key );
       keyboardPress(KEY_LEFT_SHIFT);
-    } else {
+    } else if ( sBoolGui )
+    {
+      keyboardRelease(KEY_LEFT_SHIFT);
+      keyboardPress( key );
+      keyboardPress(KEY_LEFT_SHIFT);
+    }
+     else {
       keyboardPress(KEY_LEFT_SHIFT);
       keyboardPress( key );
       keyboardRelease(KEY_LEFT_SHIFT);
@@ -367,12 +376,20 @@ void setup() {
   }
 
   // Set the LED pins as output and set them low
+  //gpio_init(LED_1);
+  //gpio_init(LED_2);
+  //gpio_set_dir(LED_1, GPIO_OUT);
+  //gpio_set_dir(LED_2, GPIO_OUT);
   pinMode (LED_1, OUTPUT);
-  digitalWrite( LED_1, LOW);
   pinMode (LED_2, OUTPUT);
+  //gpio_put(LED_1, false);
+  //gpio_put(LED_2, false);
+  digitalWrite( LED_1, LOW);
   digitalWrite( LED_2, LOW);
 
   // begin keyboard input
+
+  Serial.begin(115200);
   Keyboard.begin();
 }
 
@@ -408,11 +425,16 @@ void loop() {
       // we are just going to write our own
       static bool capsLockPressed = false;      
       if ( nonRepeatingKeyPress( Col_0, capsLockPressed ) ) {
+        //Serial.printf("capslock pressed\n");
         sBoolCapsLock = !sBoolCapsLock;
         auto ledState = sBoolCapsLock ? HIGH : LOW;
         digitalWrite( LED_1, ledState);
+        digitalWrite( LED_2, ledState);        
+        //auto ledState = sBoolCapsLock ? true : false;
+        //gpio_put(LED_1, ledState);
+        //gpio_put(LED_2, ledState);
       }
-    } else if ( i == 3 ) { 
+    } else if ( i == 3 ) {
       //SHIFT
       modifierFunc( Col_1, Col_13, sBoolShift, KEY_LEFT_SHIFT );
       anyKeyDown = anyKeyDown || sBoolShift;
@@ -504,7 +526,7 @@ void loop() {
     // I've replaced most of the function keys with some handy shortcuts. If you want the F1-F12 keys instead of these shortcuts, 
     // see line 124 of this code. 
 
-
+/*
     // F1 (cut)
     if ( nonRepeatingKeyPress( Col_2, sFnPressed[ 2 ] ) ) {
       ScopedOsModifier sm;
@@ -575,57 +597,54 @@ void loop() {
     if ( nonRepeatingKeyPress( Col_14, sFnPressed[ 14 ] ) ) {
        writeUnicode( "03c0" ); // types a Pi symbol
     }
-
+*/
     // Print Screen
    if ( checkMinimumKeyPress( Col_15 ) ) {
-       //Instead of Scroll lock, this types an ohm symbol.
-      writeUnicode( "03a9" );
+       //Instead of Scroll lock, this does a screen cap
+#ifdef MACOSX
+      // Mac whole screen capture
+      ScopedGui sg;
+      ScopedShift ss;
+      keyboardWrite( '3' );
+#elif defined WIN32
+      // Windows snipping tool
+      ScopedGui sg;
+      ScopedShift ss;
+      keyboardWrite( 's' );
 
-      
-//#ifdef MACOSX
-//      // Mac whole screen capture
-//      ScopedGui sg;
-//      ScopedShift ss;
-//      keyboardWrite( '3' );
-//#elif defined WIN32
-//      // Windows snipping tool
-//      ScopedGui sg;
-//      ScopedShift ss;
-//      keyboardWrite( 's' );
-//
-//#endif
+#endif
 
 
     }
 
     //Scrl:  
     if (checkMinimumKeyPress( Col_16 ) ) {
-//#ifdef MACOSX
-//      // Mac partial screen capture
-//      ScopedGui sg;
-//      ScopedShift ss;
-//      keyboardWrite( '4' );
-//#endif
-
-      //Instead of pause, this types a micro symbol.
-      writeUnicode( "03bc" );
+#ifdef MACOSX
+      // Mac partial screen capture
+      ScopedGui sg;
+      ScopedShift ss;
+      keyboardWrite( '4' );
+#endif
     }
 
     //Pause: 
     if ( checkMinimumKeyPress( Col_17 ) ) {
-//#ifdef MACOSX
-//      // Mac screen lock
-//      ScopedGui sg;
-//      ScopedControl sc;
-//      keyboardWrite( 'q' );
-//#elif defined WIN32
-//      // Windows screen lock
-//      ScopedGui sg;
-//      keyboardWrite( 'l' );      
-//#endif
-
+      //reset_usb_boot(0,0);
+      watchdog_enable(1, 1);
+      while(1);
+/*#ifdef MACOSX
+      // Mac screen lock
+      ScopedGui sg;
+      ScopedControl sc;
+      keyboardWrite( 'q' );
+#elif defined WIN32
+      // Windows screen lock
+      ScopedGui sg;
+      keyboardWrite( 'l' );      
+#endif
+*/
       //Instead of Print Screen this types a degree symbol
-      writeUnicode( "00b0" );
+      //writeUnicode( "00b0" );
 
 
 
